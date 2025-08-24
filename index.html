@@ -1,0 +1,2039 @@
+showCodecError(analysis) {
+                const placeholder = document.getElementById('videoPlaceholder');
+                placeholder.innerHTML = `
+                    <div style="color: #dc2626; text-align: center;">
+                        <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                        <div style="font-size: 1.2em; font-weight: 600; margin-bottom: 10px;">
+                            Format không được hỗ trợ
+                        </div>
+                        <div style="font-size: 14px; color: #7f1d1d; margin-bottom: 20px;">
+                            ${analysis.fileType} không thể play trên browser này
+                        </div>
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            🔄 Chọn video khác
+                        </button>
+                    </div>
+                `;
+            }
+
+            showCodecWarning(analysis) {
+                const warningHTML = `
+                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                            <span style="font-size: 1.5em;">⚠️</span>
+                            <div style="font-weight: 600; color: #92400e;">Codec Warning</div>
+                        </div>
+                        <div style="color: #92400e; margin-bottom: 15px;">
+                            <strong>Detected:</strong> ${analysis.likelyCodec}<br>
+                            <strong>Issue:</strong> ${analysis.conversionReason}
+                        </div>
+                        <div style="color: #78350f; font-size: 14px; margin-bottom: 15px;">
+                            Video có thể không load được. Nếu gặp lỗi, hãy convert sang H.264.
+                        </div>
+                        ${this.getConversionLinksHTML()}
+                    </div>
+                `;
+                
+                // Insert warning after instruction panel
+                const instructionPanel = document.querySelector('.instruction-panel');
+                const warningDiv = document.createElement('div');
+                warningDiv.innerHTML = warningHTML;
+                instructionPanel.parentNode.insertBefore(warningDiv, instructionPanel.nextSibling);
+            }
+
+            showConversionRequired(analysis) {
+                const placeholder = document.getElementById('videoPlaceholder');
+                placeholder.innerHTML = `
+                    <div style="color: #dc2626; text-align: center; padding: 20px;">
+                        <div style="font-size: 2em; margin-bottom: 15px;">🔄</div>
+                        <div style="font-size: 1.2em; font-weight: 600; margin-bottom: 10px;">
+                            Conversion Required
+                        </div>
+                        <div style="font-size: 14px; color: #7f1d1d; margin-bottom: 15px;">
+                            Video codec <strong>${analysis.likelyCodec}</strong> không được browser hỗ trợ
+                        </div>
+                        <div style="background: #fef2f2; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">🛠️ Convert sang format tương thích:</div>
+                            ${this.getConversionLinksHTML(true)}
+                        </div>
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px;">
+                            🔄 Thử video khác
+                        </button>
+                    </div>
+                `;
+            }
+
+            getConversionLinksHTML(compact = false) {
+                const links = [
+                    { name: 'CloudConvert', url: 'https://cloudconvert.com/mp4-converter', desc: 'Free, 25 files/day' },
+                    { name: 'Media.io', url: 'https://www.media.io/video-converter.html', desc: 'AI-powered' },
+                    { name: 'Zamzar', url: 'https://www.zamzar.com/convert/mp4/', desc: 'Reliable' }
+                ];
+                
+                if (compact) {
+                    return links.map(link => 
+                        `<a href="${link.url}" target="_blank" style="display: inline-block; background: #22c55e; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; margin: 2px; font-size: 12px; font-weight: 600;">${link.name}</a>`
+                    ).join(' ');
+                } else {
+                    return `
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                            ${links.map(link => 
+                                `<a href="${link.url}" target="_blank" style="display: block; background: #22c55e; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: 600; text-align: center; min-width: 120px; transition: all 0.3s;">
+                                    <div>${link.name}</div>
+                                    <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;">${link.desc}</div>
+                                </a>`
+                            ).join('')}
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #e0f2fe; border-radius: 8px; font-size: 12px; color: #0c4a6e;">
+                            <strong>Recommended:</strong> MP4 + H.264 (AVC) + AAC audio
+                        </div>
+                    `;
+                }
+            }            testVideoQuick(file) {
+                return new Promise((resolve, reject) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    
+                    const timeout = setTimeout(() => {
+                        console.log('Quick video test timeout');
+                        resolve(false);
+                    }, 3000);
+                    
+                    video.addEventListener('loadedmetadata', () => {
+                        clearTimeout(timeout);
+                        console.log('Quick video test SUCCESS:', video.videoWidth + 'x' + video.videoHeight);
+                        resolve(true);
+                    }, { once: true });
+                    
+                    video.addEventListener('error', (e) => {
+                        clearTimeout(timeout);
+                        console.log('Quick video test FAILED:', e.target.error);
+                        resolve(false);
+                    }, { once: true });
+                    
+                    try {
+                        const url = URL.createObjectURL(file);
+                        video.src = url;
+                    } catch (error) {
+                        clearTimeout(timeout);
+                        resolve(false);
+                    }
+                });
+            }            fileToDataURL(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    
+                    reader.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const percentComplete = (e.loaded / e.total) * 100;
+                            this.updateLoadingText(`Đang đọc file: ${percentComplete.toFixed(0)}%`);
+                            console.log('FileReader progress:', percentComplete.toFixed(1) + '%');
+                        }
+                    };
+                    
+                    reader.onload = () => {
+                        console.log('FileReader completed');
+                        resolve(reader.result);
+                    };
+                    
+                    reader.onerror = (e) => {
+                        console.error('FileReader error:', e);
+                        reject(new Error('Không thể đọc file'));
+                    };
+                    
+                    reader.readAsDataURL(file);
+                });
+            }            checkVideoSupport(file) {
+                const video = document.createElement('video');
+                const basicSupport = video.canPlayType(file.type);
+                
+                // Test specific codec combinations
+                const codecTests = {
+                    'H.264 Baseline': video.canPlayType('video/mp4; codecs="avc1.42E01E"'),
+                    'H.264 Main': video.canPlayType('video/mp4; codecs="avc1.4D4015"'),
+                    'H.264 High': video.canPlayType('video/mp4; codecs="avc1.640028"'),
+                    'H.265 HEVC': video.canPlayType('video/mp4; codecs="hev1.1.6.L93.B0"'),
+                    'WebM VP8': video.canPlayType('video/webm; codecs="vp8"'),
+                    'WebM VP9': video.canPlayType('video/webm; codecs="vp9"')
+                };
+                
+                // Detect likely codec from file characteristics
+                let likelyCodec = 'H.264';
+                let needsConversion = false;
+                let conversionReason = '';
+                
+                if (file.type === 'video/mp4') {
+                    // iPhone/Android files are usually HEVC if small size + high quality
+                    if ((file.size < 20 * 1024 * 1024) && (file.name.includes('IMG_') || file.name.includes('VID_') || file.name.includes('MOV_'))) {
+                        likelyCodec = 'H.265 (HEVC)';
+                        if (codecTests['H.265 HEVC'] !== 'probably') {
+                            needsConversion = true;
+                            conversionReason = 'HEVC codec không được browser hỗ trợ đầy đủ';
+                        }
+                    }
+                }
+                
+                const analysis = {
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size,
+                    basicSupport: basicSupport,
+                    likelyCodec: likelyCodec,
+                    codecTests: codecTests,
+                    needsConversion: needsConversion,
+                    conversionReason: conversionReason,
+                    supported: basicSupport !== ''
+                };
+                
+                console.log('Video analysis:', analysis);
+                return analysis;
+            }<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Subtitle từ Video</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #e0e6ed;
+            border-radius: 16px;
+            padding: 60px;
+            text-align: center;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e6f1ff 100%);
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #e6f1ff 0%, #dae8ff 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.4em;
+            color: #334155;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-subtext {
+            color: #64748b;
+            font-size: 1.1em;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .video-panel {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .text-panel {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .panel-title {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        #videoPlayer {
+            width: 100%;
+            display: block;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .video-overlay.active {
+            pointer-events: all;
+            cursor: crosshair;
+        }
+
+        .selection-rectangle {
+            position: absolute;
+            border: 3px solid #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+            pointer-events: none;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .selection-handles {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ff4444;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nw-resize;
+        }
+
+        .handle-tl { top: -6px; left: -6px; }
+        .handle-tr { top: -6px; right: -6px; cursor: ne-resize; }
+        .handle-bl { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .handle-br { bottom: -6px; right: -6px; cursor: se-resize; }
+
+        .video-placeholder {
+            height: 400px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 1.2em;
+            text-align: center;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .controls-section {
+            margin-top: 25px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.3);
+        }
+
+        .language-selector select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            color: #334155;
+            transition: border-color 0.3s ease;
+        }
+
+        .language-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #textOutput {
+            width: 100%;
+            min-height: 400px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.7;
+            resize: vertical;
+            font-family: 'Monaco', 'SF Mono', monospace;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+
+        #textOutput:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #10b981);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .export-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            max-width: 350px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success { background: linear-gradient(135deg, #10b981, #059669); }
+        .notification.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .notification.info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+
+        .selection-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .selection-info.active {
+            display: block;
+        }
+
+        .selection-coords {
+            font-family: 'Monaco', 'SF Mono', monospace;
+            font-size: 12px;
+            color: #0369a1;
+            margin-top: 5px;
+        }
+
+        .frame-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .frame-item {
+            position: relative;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .frame-item:hover {
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+
+        .frame-item.processing {
+            border-color: #f59e0b;
+        }
+
+        .frame-item.completed {
+            border-color: #10b981;
+        }
+
+        .frame-item img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+        }
+
+        .frame-time {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 10px;
+            padding: 2px 4px;
+            text-align: center;
+        }
+
+        .api-config {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .api-config h3 {
+            color: #92400e;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 1200px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .control-row {
+                flex-direction: column;
+            }
+            
+            .export-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2.2em;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .upload-area {
+                padding: 40px 20px;
+            }
+        }
+
+        .hidden { display: none !important; }
+
+        .instruction-panel {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .instruction-panel h3 {
+            color: #0369a1;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .instruction-steps {
+            list-style: none;
+            padding: 0;
+        }
+
+        .instruction-steps li {
+            padding: 8px 0;
+            color: #0c4a6e;
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .instruction-steps li::before {
+            content: counter(step-counter);
+            counter-increment: step-counter;
+            position: absolute;
+            left: 0;
+            top: 8px;
+            background: #0ea5e9;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .instruction-steps {
+            counter-reset: step-counter;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 OCR Subtitle từ Video</h1>
+            <p>Trích xuất chữ từ subtitle có sẵn trong video bằng AI Vision</p>
+        </div>
+
+        <div class="main-content">
+            <div class="instruction-panel">
+                <h3>📋 Hướng dẫn sử dụng</h3>
+                <ol class="instruction-steps">
+                    <li>Upload video có subtitle được in sẵn (hard-coded)</li>
+                    <li>Vẽ khung chữ nhật bao quanh vùng subtitle trên video</li>
+                    <li>Cấu hình OpenAI API key (hoặc dùng Tesseract offline)</li>
+                    <li>Chọn khoảng thời gian và tần suất extract frames</li>
+                    <li>Nhấn "Trích xuất OCR" để bắt đầu xử lý</li>
+                </ol>
+                
+                <div style="margin-top: 15px; padding: 15px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;">
+                    <div style="font-weight: 600; color: #dc2626; margin-bottom: 10px;">🔧 Nếu video không hiển thị:</div>
+                    <div style="font-size: 14px; color: #7f1d1d;">
+                        • Thử convert video sang <strong>MP4 (H.264 codec)</strong><br>
+                        • Check Console (F12) xem error cụ thể<br>
+                        • File size &lt; 500MB, resolution &lt; 4K<br>
+                        • Dùng Chrome/Edge cho compatibility tốt nhất
+                    </div>
+                    <button onclick="window.videoExtractor.testFormats()" style="margin-top: 10px; padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                        🧪 Test Video Support
+                    </button>
+                </div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Kéo thả video vào đây hoặc nhấn để chọn</div>
+                <div class="upload-subtext">Hỗ trợ MP4, MOV, AVI, WebM với subtitle in sẵn</div>
+                <input type="file" id="videoInput" accept="video/*" style="display: none;">
+            </div>
+
+            <div class="content-grid">
+                <div class="video-panel">
+                    <div class="panel-title">
+                        🎥 Video & Chọn vùng Subtitle
+                    </div>
+                    
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <div>
+                            <div style="font-size: 2em; margin-bottom: 10px;">📹</div>
+                            <div>Chọn video để bắt đầu</div>
+                        </div>
+                    </div>
+
+                    <!-- Loading state -->
+                    <div class="video-placeholder" id="videoLoading" style="display: none;">
+                        <div>
+                            <div style="font-size: 2em; margin-bottom: 10px; animation: pulse 2s infinite;">⏳</div>
+                            <div>Đang tải video...</div>
+                            <div style="margin-top: 15px;">
+                                <button onclick="window.videoExtractor.cancelVideoLoad()" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                                    ❌ Hủy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="video-container" id="videoContainer" style="display: none;">
+                        <video id="videoPlayer" controls preload="metadata"></video>
+                        <div class="video-overlay" id="videoOverlay"></div>
+                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; display: none;" id="videoInfo">
+                            Kích thước: <span id="videoDimensions"></span>
+                        </div>
+                    </div>
+
+                    <div class="selection-info" id="selectionInfo">
+                        <div style="font-weight: 600; color: #0369a1;">✅ Đã chọn vùng subtitle</div>
+                        <div class="selection-coords" id="selectionCoords"></div>
+                    </div>
+
+                    <div class="controls-section">
+                        <div class="control-group">
+                            <div class="control-row">
+                                <button id="selectAreaBtn" class="btn btn-primary" disabled>
+                                    🎯 Chọn vùng subtitle
+                                </button>
+                                <button id="clearSelectionBtn" class="btn btn-secondary" disabled>
+                                    🗑️ Xóa vùng chọn
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>⏱️ Cấu hình trích xuất:</label>
+                            <div class="input-group">
+                                <input type="number" id="startTime" placeholder="Bắt đầu (s)" min="0" value="0">
+                                <input type="number" id="endTime" placeholder="Kết thúc (s)" min="0">
+                                <input type="number" id="frameInterval" placeholder="Mỗi (s)" min="0.5" step="0.5" value="1">
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>🌍 Ngôn ngữ OCR:</label>
+                            <div class="language-selector">
+                                <select id="ocrLanguage">
+                                    <option value="vie">🇻🇳 Tiếng Việt</option>
+                                    <option value="eng">🇺🇸 English</option>
+                                    <option value="chi_sim">🇨🇳 中文简体</option>
+                                    <option value="chi_tra">🇹🇼 中文繁體</option>
+                                    <option value="jpn">🇯🇵 日本語</option>
+                                    <option value="kor">🇰🇷 한국어</option>
+                                    <option value="fra">🇫🇷 Français</option>
+                                    <option value="deu">🇩🇪 Deutsch</option>
+                                    <option value="spa">🇪🇸 Español</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="control-row">
+                            <button id="extractFramesBtn" class="btn btn-warning" disabled>
+                                🖼️ Trích frames
+                            </button>
+                            <button id="startOcrBtn" class="btn btn-success" disabled>
+                                🔍 OCR Subtitle
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-label">
+                            <span id="progressText">Đang xử lý...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+
+                    <div class="frame-preview" id="framePreview"></div>
+                </div>
+
+                <div class="text-panel">
+                    <div class="api-config">
+                        <h3>🔑 Cấu hình API</h3>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">OpenAI API Key (tùy chọn):</label>
+                            <input type="password" id="apiKey" placeholder="sk-..." style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 5px;">
+                                Để trống để dùng Tesseract.js offline (chậm hơn nhưng miễn phí)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-title">
+                        📄 Kết quả OCR
+                        <button id="clearTextBtn" class="btn btn-secondary" style="margin-left: auto; padding: 8px 16px; font-size: 14px;">
+                            🗑️ Xóa
+                        </button>
+                    </div>
+                    
+                    <textarea id="textOutput" placeholder="Kết quả OCR sẽ xuất hiện tại đây sau khi xử lý frames..."></textarea>
+
+                    <div class="export-options">
+                        <button id="downloadTxtBtn" class="btn btn-primary" disabled>
+                            💾 Tải xuống .TXT
+                        </button>
+                        <button id="downloadSrtBtn" class="btn btn-success" disabled>
+                            🎬 Tải xuống .SRT
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tesseract.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+
+    <script>
+        class VideoOCRExtractor {
+            constructor() {
+                this.videoFile = null;
+                this.videoElement = null;
+                this.canvas = null;
+                this.ctx = null;
+                this.isSelecting = false;
+                this.isLoading = false;
+                this.selectionBox = null;
+                this.extractedFrames = [];
+                this.ocrResults = [];
+                this.tesseractWorker = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.initCanvas();
+                this.checkDependencies();
+            }
+
+            checkDependencies() {
+                if (typeof Tesseract === 'undefined') {
+                    this.showNotification('⚠️ Tesseract.js chưa được tải. Một số tính năng có thể không hoạt động.', 'error');
+                }
+            }
+
+            setupEventListeners() {
+                const uploadArea = document.getElementById('uploadArea');
+                const videoInput = document.getElementById('videoInput');
+                const selectAreaBtn = document.getElementById('selectAreaBtn');
+                const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+                const extractFramesBtn = document.getElementById('extractFramesBtn');
+                const startOcrBtn = document.getElementById('startOcrBtn');
+                const clearTextBtn = document.getElementById('clearTextBtn');
+                const downloadTxtBtn = document.getElementById('downloadTxtBtn');
+                const downloadSrtBtn = document.getElementById('downloadSrtBtn');
+                const videoOverlay = document.getElementById('videoOverlay');
+
+                // File upload
+                uploadArea.addEventListener('click', () => videoInput.click());
+                uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
+                uploadArea.addEventListener('drop', this.handleFileDrop.bind(this));
+                uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+                
+                videoInput.addEventListener('change', this.handleFileSelect.bind(this));
+
+                // Selection controls
+                selectAreaBtn.addEventListener('click', this.toggleSelection.bind(this));
+                clearSelectionBtn.addEventListener('click', this.clearSelection.bind(this));
+                
+                // Overlay events for selection
+                videoOverlay.addEventListener('mousedown', this.startSelection.bind(this));
+                videoOverlay.addEventListener('mousemove', this.updateSelection.bind(this));
+                videoOverlay.addEventListener('mouseup', this.endSelection.bind(this));
+
+                // Processing controls
+                extractFramesBtn.addEventListener('click', this.extractFrames.bind(this));
+                startOcrBtn.addEventListener('click', this.startOCR.bind(this));
+                
+                // Text controls
+                clearTextBtn.addEventListener('click', this.clearText.bind(this));
+                downloadTxtBtn.addEventListener('click', () => this.downloadFile('txt'));
+                downloadSrtBtn.addEventListener('click', () => this.downloadFile('srt'));
+
+                // Video events
+                const videoPlayer = document.getElementById('videoPlayer');
+                videoPlayer.addEventListener('loadedmetadata', this.onVideoLoaded.bind(this));
+                videoPlayer.addEventListener('error', (e) => {
+                    const error = e.target.error;
+                    let errorMessage = 'Lỗi video không xác định';
+                    
+                    if (error) {
+                        switch(error.code) {
+                            case error.MEDIA_ERR_ABORTED:
+                                errorMessage = 'Video bị hủy bởi người dùng';
+                                break;
+                            case error.MEDIA_ERR_NETWORK:
+                                errorMessage = 'Lỗi mạng khi tải video';
+                                break;
+                            case error.MEDIA_ERR_DECODE:
+                                errorMessage = 'Lỗi decode video - codec không được hỗ trợ';
+                                break;
+                            case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                                errorMessage = 'Format video không được hỗ trợ';
+                                break;
+                        }
+                        console.error('Video error details:', error.code, error.message, errorMessage);
+                    }
+                    
+                    this.showNotification(`❌ ${errorMessage}`, 'error');
+                });
+                videoPlayer.addEventListener('canplay', () => {
+                    console.log('Video can play');
+                });
+                videoPlayer.addEventListener('loadstart', () => {
+                    console.log('Video load started');
+                });
+            }
+
+            initCanvas() {
+                this.canvas = document.createElement('canvas');
+                this.ctx = this.canvas.getContext('2d');
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                document.getElementById('uploadArea').classList.add('dragover');
+            }
+
+            handleFileDrop(e) {
+                e.preventDefault();
+                const uploadArea = document.getElementById('uploadArea');
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                console.log('Dropped files:', files);
+                
+                if (files.length === 0) {
+                    this.showNotification('Không có file nào được thả vào.', 'error');
+                    return;
+                }
+                
+                const file = files[0];
+                
+                if (!file.type.startsWith('video/')) {
+                    this.showNotification(`File không hợp lệ. Định dạng: ${file.type}. Vui lòng chọn file video.`, 'error');
+                    return;
+                }
+                
+                console.log('Loading dropped video:', file.name, file.type);
+                this.loadVideo(file);
+            }
+
+            handleFileSelect(e) {
+                const file = e.target.files[0];
+                console.log('Selected file:', file);
+                
+                if (!file) {
+                    this.showNotification('Không có file nào được chọn.', 'error');
+                    return;
+                }
+                
+                if (!file.type.startsWith('video/')) {
+                    this.showNotification(`File không hợp lệ. Định dạng: ${file.type}. Vui lòng chọn file video.`, 'error');
+                    return;
+                }
+                
+                // Check file size (optional, but good UX)
+                const maxSize = 500 * 1024 * 1024; // 500MB
+                if (file.size > maxSize) {
+                    this.showNotification('File quá lớn. Vui lòng chọn video nhỏ hơn 500MB.', 'error');
+                    return;
+                }
+                
+                console.log('Loading video file:', file.name, file.type, (file.size/1024/1024).toFixed(2) + 'MB');
+                this.loadVideo(file);
+            }
+
+            cancelVideoLoad() {
+                console.log('Cancelling video load...');
+                this.isLoading = false;
+                
+                // Reset UI
+                document.getElementById('videoLoading').style.display = 'none';
+                document.getElementById('videoContainer').style.display = 'none';
+                document.getElementById('videoPlaceholder').style.display = 'block';
+                
+                // Clean up video element
+                if (this.videoElement && this.videoElement.src) {
+                    try {
+                        URL.revokeObjectURL(this.videoElement.src);
+                    } catch(e) {
+                        console.log('Error revoking URL:', e);
+                    }
+                    this.videoElement.src = '';
+                }
+                
+                this.showNotification('❌ Đã hủy tải video', 'info');
+            }
+
+            async loadVideo(file) {
+                console.log('Starting video load process...');
+                this.isLoading = true;
+                
+                // Analyze video codec and compatibility
+                const analysis = this.checkVideoSupport(file);
+                
+                if (!analysis.supported) {
+                    this.showCodecError(analysis);
+                    this.isLoading = false;
+                    return;
+                }
+                
+                // Show codec warning if needed
+                if (analysis.needsConversion) {
+                    this.showCodecWarning(analysis);
+                }
+                
+                this.videoFile = file;
+                this.videoElement = document.getElementById('videoPlayer');
+                const videoPlaceholder = document.getElementById('videoPlaceholder');
+                const videoLoading = document.getElementById('videoLoading');
+                const videoContainer = document.getElementById('videoContainer');
+                
+                // Clean up previous video if any
+                if (this.videoElement.src) {
+                    try {
+                        URL.revokeObjectURL(this.videoElement.src);
+                    } catch(e) {
+                        console.log('Error revoking previous URL:', e);
+                    }
+                }
+                
+                // Quick compatibility test first
+                console.log('Running quick video test...');
+                const quickTestPassed = await this.testVideoQuick(file);
+                
+                if (!quickTestPassed && analysis.needsConversion) {
+                    console.log('Quick test failed + conversion needed');
+                    this.showConversionRequired(analysis);
+                    this.isLoading = false;
+                    return;
+                }
+                
+                // Try loading the video
+                this.tryLoadVideo(file, videoPlaceholder, videoLoading, videoContainer, analysis);
+            }
+
+            async tryLoadVideo(file, videoPlaceholder, videoLoading, videoContainer, analysis = null) {
+                if (!this.isLoading) return;
+                
+                // Show loading state
+                videoPlaceholder.style.display = 'none';
+                videoLoading.style.display = 'block';
+                videoContainer.style.display = 'none';
+
+                // Method 1: Try createObjectURL (most common) with timeout
+                try {
+                    console.log('Trying Method 1: createObjectURL');
+                    const url = URL.createObjectURL(file);
+                    console.log('Created object URL:', url);
+                    
+                    const success = await this.loadVideoWithTimeout(url, 8000, () => {
+                        if (!this.isLoading) return;
+                        console.log('Method 1 success');
+                        videoLoading.style.display = 'none';
+                        videoContainer.style.display = 'block';
+                        this.isLoading = false;
+                        this.onVideoLoaded();
+                    });
+                    
+                    if (!this.isLoading) return;
+                    
+                    if (!success) {
+                        console.log('Method 1 timeout, trying Method 2');
+                        URL.revokeObjectURL(url);
+                        this.tryFileReader(file, videoPlaceholder, videoLoading, videoContainer, analysis);
+                    }
+                } catch (error) {
+                    if (!this.isLoading) return;
+                    console.log('Method 1 failed:', error.message);
+                    this.tryFileReader(file, videoPlaceholder, videoLoading, videoContainer, analysis);
+                }
+            }
+
+            async tryFileReader(file, videoPlaceholder, videoLoading, videoContainer, analysis = null) {
+                if (!this.isLoading) return;
+                
+                try {
+                    console.log('Trying Method 2: FileReader to Data URL');
+                    
+                    // Check file size - FileReader có thể chậm với file lớn
+                    const maxSizeForDataURL = 30 * 1024 * 1024; // Reduce to 30MB for faster loading
+                    if (file.size > maxSizeForDataURL) {
+                        throw new Error('File quá lớn cho Data URL method (>30MB)');
+                    }
+
+                    // Show progress for file reading
+                    this.updateLoadingText('Đang đọc file...');
+                    const dataURL = await this.fileToDataURL(file);
+                    
+                    if (!this.isLoading) return;
+                    
+                    console.log('Created data URL, length:', dataURL.length);
+                    
+                    this.updateLoadingText('Đang load video...');
+                    const success = await this.loadVideoWithTimeout(dataURL, 10000, () => {
+                        if (!this.isLoading) return;
+                        console.log('Method 2 success');
+                        videoLoading.style.display = 'none';
+                        videoContainer.style.display = 'block';
+                        this.isLoading = false;
+                        this.onVideoLoaded();
+                    });
+                    
+                    if (!this.isLoading) return;
+                    
+                    if (!success) {
+                        throw new Error('Method 2 timeout');
+                    }
+                } catch (error) {
+                    if (!this.isLoading) return;
+                    console.log('Method 2 failed:', error.message);
+                    this.isLoading = false;
+                    this.showLoadError(error, file, videoPlaceholder, videoLoading, videoContainer, analysis);
+                }
+            }
+
+            updateLoadingText(text) {
+                const loadingDiv = document.getElementById('videoLoading');
+                if (loadingDiv) {
+                    const textElement = loadingDiv.querySelector('div:last-child');
+                    if (textElement) {
+                        textElement.textContent = text;
+                    }
+                }
+            }
+
+            loadVideoWithTimeout(url, timeoutMs, onSuccess) {
+                return new Promise((resolve, reject) => {
+                    const tempVideo = document.createElement('video');
+                    let timeoutId;
+                    let resolved = false;
+                    
+                    const cleanup = () => {
+                        if (timeoutId) clearTimeout(timeoutId);
+                        tempVideo.removeEventListener('loadedmetadata', successHandler);
+                        tempVideo.removeEventListener('error', errorHandler);
+                        tempVideo.removeEventListener('loadstart', loadStartHandler);
+                        tempVideo.removeEventListener('progress', progressHandler);
+                    };
+
+                    const successHandler = () => {
+                        if (resolved) return;
+                        resolved = true;
+                        cleanup();
+                        console.log('Video metadata loaded successfully');
+                        // Copy to actual video element
+                        this.videoElement.src = url;
+                        this.videoElement.addEventListener('loadedmetadata', onSuccess, { once: true });
+                        resolve(true);
+                    };
+
+                    const errorHandler = (e) => {
+                        if (resolved) return;
+                        resolved = true;
+                        cleanup();
+                        const error = e.target.error;
+                        console.log('Video load error:', error);
+                        resolve(false);
+                    };
+
+                    const loadStartHandler = () => {
+                        console.log('Video load started...');
+                    };
+
+                    const progressHandler = () => {
+                        console.log('Video loading progress...');
+                    };
+
+                    // Set timeout
+                    timeoutId = setTimeout(() => {
+                        if (resolved) return;
+                        resolved = true;
+                        console.log('Video load timeout after', timeoutMs + 'ms');
+                        cleanup();
+                        resolve(false);
+                    }, timeoutMs);
+
+                    tempVideo.addEventListener('loadedmetadata', successHandler, { once: true });
+                    tempVideo.addEventListener('error', errorHandler, { once: true });
+                    tempVideo.addEventListener('loadstart', loadStartHandler, { once: true });
+                    tempVideo.addEventListener('progress', progressHandler);
+                    
+                    // Set source and start loading
+                    console.log('Setting video source and starting load...');
+                    tempVideo.preload = 'metadata';
+                    tempVideo.src = url;
+                });
+            }
+
+            showLoadError(error, file, videoPlaceholder, videoLoading, videoContainer, analysis = null) {
+                let errorMessage = 'Không thể tải video';
+                let isCodecIssue = false;
+                
+                if (error) {
+                    switch(error.code) {
+                        case 1: // MEDIA_ERR_ABORTED
+                            errorMessage = 'Tải video bị hủy';
+                            break;
+                        case 2: // MEDIA_ERR_NETWORK
+                            errorMessage = 'Lỗi mạng hoặc file bị lỗi';
+                            break;
+                        case 3: // MEDIA_ERR_DECODE
+                            errorMessage = 'Không thể decode video - codec không hỗ trợ';
+                            isCodecIssue = true;
+                            break;
+                        case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+                            errorMessage = 'Codec không được browser hỗ trợ';
+                            isCodecIssue = true;
+                            break;
+                        default:
+                            if (error.message && error.message.includes('safety check')) {
+                                errorMessage = 'Browser block video vì security policy';
+                            }
+                            break;
+                    }
+                }
+                
+                console.error('Final video load error:', {
+                    error: error,
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: (file.size/1024/1024).toFixed(2) + 'MB',
+                    isCodecIssue: isCodecIssue
+                });
+                
+                // Show error in placeholder
+                videoLoading.style.display = 'none';
+                videoContainer.style.display = 'none';
+                videoPlaceholder.style.display = 'block';
+                
+                if (isCodecIssue && analysis) {
+                    // Show codec-specific error with conversion options
+                    videoPlaceholder.innerHTML = `
+                        <div style="color: #dc2626; text-align: center; padding: 20px;">
+                            <div style="font-size: 2em; margin-bottom: 15px;">🚫</div>
+                            <div style="font-size: 1.3em; font-weight: 600; margin-bottom: 10px;">
+                                Codec Not Supported
+                            </div>
+                            <div style="font-size: 14px; color: #7f1d1d; margin-bottom: 10px;">
+                                ${errorMessage}
+                            </div>
+                            <div style="background: #fef2f2; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
+                                <div style="font-weight: 600; margin-bottom: 10px; color: #991b1b;">📊 Video Analysis:</div>
+                                <div style="font-size: 13px; color: #7f1d1d;">
+                                    • <strong>Detected Codec:</strong> ${analysis.likelyCodec}<br>
+                                    • <strong>File Size:</strong> ${(file.size/1024/1024).toFixed(2)} MB<br>
+                                    • <strong>Browser Support:</strong> ${analysis.basicSupport || 'None'}<br>
+                                    • <strong>Issue:</strong> ${analysis.conversionReason || 'Codec incompatible'}
+                                </div>
+                            </div>
+                            <div style="background: #e0f2fe; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                                <div style="font-weight: 600; margin-bottom: 10px; color: #0c4a6e;">🛠️ Quick Fix Solutions:</div>
+                                ${this.getConversionLinksHTML(true)}
+                                <div style="margin-top: 10px; font-size: 12px; color: #0369a1;">
+                                    Convert to: <strong>MP4 + H.264 + AAC</strong> for best compatibility
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                                <button onclick="location.reload()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                    🔄 Try Another Video
+                                </button>
+                                <button onclick="window.videoExtractor.showCodecHelp()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                    ❓ More Help
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Show generic error
+                    videoPlaceholder.innerHTML = `
+                        <div style="color: #dc2626; text-align: center; padding: 20px;">
+                            <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                            <div style="font-size: 1.2em; font-weight: 600; margin-bottom: 10px;">
+                                ${errorMessage}
+                            </div>
+                            <div style="font-size: 14px; color: #7f1d1d; margin-bottom: 20px;">
+                                File: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)
+                            </div>
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button onclick="location.reload()" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                    🔄 Try Another Video
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                this.showNotification(`❌ ${errorMessage}`, 'error');
+            }
+
+            showCodecHelp() {
+                const helpContent = `
+                    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                        <div style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                            <h2 style="margin-bottom: 20px; color: #1e293b;">🔧 Video Codec Help</h2>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <h3 style="color: #374151; margin-bottom: 10px;">Why This Happens:</h3>
+                                <p style="color: #6b7280; line-height: 1.6;">
+                                    Modern phones (iPhone/Android) use <strong>HEVC (H.265)</strong> codec to save storage space. 
+                                    However, many browsers don't fully support HEVC playback, causing the "codec not supported" error.
+                                </p>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <h3 style="color: #374151; margin-bottom: 10px;">Solutions:</h3>
+                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                    <strong>📱 Mobile Solution:</strong> Try using <strong>Safari on iPhone</strong> instead of Chrome. Safari has better HEVC support.
+                                </div>
+                                <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                    <strong>🔄 Conversion Solution:</strong> Convert video to H.264 format using online tools like CloudConvert or Media.io
+                                </div>
+                                <div style="background: #f0fdf4; padding: 15px; border-radius: 8px;">
+                                    <strong>🖥️ Desktop Solution:</strong> Use Chrome/Edge on desktop, or try Firefox which has better codec support
+                                </div>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 20px;">
+                                <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                    Got It! ✅
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', helpContent);
+            }
+
+            onVideoLoaded() {
+                console.log('Video metadata loaded');
+                console.log('Video dimensions:', this.videoElement.videoWidth, 'x', this.videoElement.videoHeight);
+                console.log('Video duration:', this.videoElement.duration);
+                
+                // Update end time input
+                const endTimeInput = document.getElementById('endTime');
+                if (this.videoElement.duration) {
+                    endTimeInput.value = Math.floor(this.videoElement.duration);
+                    endTimeInput.max = Math.floor(this.videoElement.duration);
+                }
+                
+                // Show video info
+                const videoInfo = document.getElementById('videoInfo');
+                const videoDimensions = document.getElementById('videoDimensions');
+                if (videoInfo && videoDimensions) {
+                    videoDimensions.textContent = `${this.videoElement.videoWidth} × ${this.videoElement.videoHeight}`;
+                    videoInfo.style.display = 'block';
+                }
+                
+                // Enable selection button
+                document.getElementById('selectAreaBtn').disabled = false;
+                
+                this.showNotification(`✅ Video đã sẵn sàng! Kích thước: ${this.videoElement.videoWidth}×${this.videoElement.videoHeight}`, 'success');
+            }
+
+            toggleSelection() {
+                const overlay = document.getElementById('videoOverlay');
+                const btn = document.getElementById('selectAreaBtn');
+                
+                if (overlay.classList.contains('active')) {
+                    this.stopSelection();
+                } else {
+                    this.startSelectionMode();
+                }
+            }
+
+            startSelectionMode() {
+                const overlay = document.getElementById('videoOverlay');
+                const btn = document.getElementById('selectAreaBtn');
+                
+                overlay.classList.add('active');
+                btn.textContent = '❌ Hủy chọn vùng';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+                
+                this.showNotification('🎯 Click và kéo để chọn vùng subtitle', 'info');
+            }
+
+            stopSelection() {
+                const overlay = document.getElementById('videoOverlay');
+                const btn = document.getElementById('selectAreaBtn');
+                
+                overlay.classList.remove('active');
+                btn.textContent = '🎯 Chọn vùng subtitle';
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+                
+                this.isSelecting = false;
+            }
+
+            startSelection(e) {
+                if (!document.getElementById('videoOverlay').classList.contains('active')) return;
+                
+                this.isSelecting = true;
+                const rect = this.videoElement.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                this.selectionStart = { x, y };
+                
+                // Remove existing selection
+                this.clearSelectionBox();
+                
+                // Create new selection box
+                this.selectionBox = document.createElement('div');
+                this.selectionBox.className = 'selection-rectangle';
+                this.selectionBox.style.left = x + 'px';
+                this.selectionBox.style.top = y + 'px';
+                this.selectionBox.style.width = '0px';
+                this.selectionBox.style.height = '0px';
+                
+                document.getElementById('videoOverlay').appendChild(this.selectionBox);
+            }
+
+            updateSelection(e) {
+                if (!this.isSelecting || !this.selectionBox) return;
+                
+                const rect = this.videoElement.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                
+                const width = Math.abs(currentX - this.selectionStart.x);
+                const height = Math.abs(currentY - this.selectionStart.y);
+                const left = Math.min(this.selectionStart.x, currentX);
+                const top = Math.min(this.selectionStart.y, currentY);
+                
+                this.selectionBox.style.left = left + 'px';
+                this.selectionBox.style.top = top + 'px';
+                this.selectionBox.style.width = width + 'px';
+                this.selectionBox.style.height = height + 'px';
+            }
+
+            endSelection(e) {
+                if (!this.isSelecting) return;
+                
+                this.isSelecting = false;
+                
+                // Get final selection coordinates
+                const rect = this.videoElement.getBoundingClientRect();
+                const videoWidth = this.videoElement.videoWidth;
+                const videoHeight = this.videoElement.videoHeight;
+                const displayWidth = rect.width;
+                const displayHeight = rect.height;
+                
+                if (this.selectionBox) {
+                    const boxRect = this.selectionBox.getBoundingClientRect();
+                    const overlayRect = document.getElementById('videoOverlay').getBoundingClientRect();
+                    
+                    // Convert display coordinates to video coordinates
+                    const scaleX = videoWidth / displayWidth;
+                    const scaleY = videoHeight / displayHeight;
+                    
+                    this.selection = {
+                        x: Math.round((boxRect.left - overlayRect.left) * scaleX),
+                        y: Math.round((boxRect.top - overlayRect.top) * scaleY),
+                        width: Math.round(boxRect.width * scaleX),
+                        height: Math.round(boxRect.height * scaleY)
+                    };
+                    
+                    this.showSelectionInfo();
+                    this.stopSelection();
+                    
+                    // Enable frame extraction
+                    document.getElementById('extractFramesBtn').disabled = false;
+                    document.getElementById('clearSelectionBtn').disabled = false;
+                }
+            }
+
+            showSelectionInfo() {
+                const info = document.getElementById('selectionInfo');
+                const coords = document.getElementById('selectionCoords');
+                
+                info.classList.add('active');
+                coords.textContent = `Vùng chọn: ${this.selection.x}, ${this.selection.y}, ${this.selection.width}x${this.selection.height}`;
+                
+                this.showNotification('✅ Đã chọn vùng subtitle thành công!', 'success');
+            }
+
+            clearSelection() {
+                this.clearSelectionBox();
+                this.selection = null;
+                
+                document.getElementById('selectionInfo').classList.remove('active');
+                document.getElementById('extractFramesBtn').disabled = true;
+                document.getElementById('clearSelectionBtn').disabled = true;
+                document.getElementById('startOcrBtn').disabled = true;
+                
+                // Clear frames and preview
+                this.extractedFrames = [];
+                document.getElementById('framePreview').innerHTML = '';
+                
+                this.showNotification('🗑️ Đã xóa vùng chọn', 'info');
+            }
+
+            clearSelectionBox() {
+                if (this.selectionBox) {
+                    this.selectionBox.remove();
+                    this.selectionBox = null;
+                }
+            }
+
+            async extractFrames() {
+                if (!this.videoFile || !this.selection) return;
+                
+                const startTime = parseFloat(document.getElementById('startTime').value) || 0;
+                const endTime = parseFloat(document.getElementById('endTime').value) || this.videoElement.duration;
+                const interval = parseFloat(document.getElementById('frameInterval').value) || 1;
+                
+                this.showProgress();
+                this.extractedFrames = [];
+                document.getElementById('framePreview').innerHTML = '';
+                
+                const totalFrames = Math.ceil((endTime - startTime) / interval);
+                let processedFrames = 0;
+                
+                this.updateProgress(0, 'Bắt đầu trích xuất frames...');
+                
+                for (let time = startTime; time <= endTime; time += interval) {
+                    try {
+                        const frameData = await this.captureFrame(time);
+                        const frameInfo = {
+                            time: time,
+                            data: frameData,
+                            processed: false
+                        };
+                        
+                        this.extractedFrames.push(frameInfo);
+                        this.addFrameToPreview(frameInfo, this.extractedFrames.length - 1);
+                        
+                        processedFrames++;
+                        const progress = (processedFrames / totalFrames) * 100;
+                        this.updateProgress(progress, `Đã trích xuất ${processedFrames}/${totalFrames} frames`);
+                        
+                        // Small delay to prevent blocking UI
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        
+                    } catch (error) {
+                        console.error('Error extracting frame at', time, ':', error);
+                    }
+                }
+                
+                this.hideProgress();
+                document.getElementById('startOcrBtn').disabled = false;
+                this.showNotification(`✅ Đã trích xuất ${this.extractedFrames.length} frames`, 'success');
+            }
+
+            async captureFrame(time) {
+                return new Promise((resolve, reject) => {
+                    const video = this.videoElement;
+                    
+                    const onSeeked = () => {
+                        try {
+                            // Set canvas size to selection area
+                            this.canvas.width = this.selection.width;
+                            this.canvas.height = this.selection.height;
+                            
+                            // Draw the selected area from video to canvas
+                            this.ctx.drawImage(
+                                video,
+                                this.selection.x, this.selection.y, this.selection.width, this.selection.height,
+                                0, 0, this.selection.width, this.selection.height
+                            );
+                            
+                            // Convert to data URL
+                            const dataURL = this.canvas.toDataURL('image/png');
+                            
+                            video.removeEventListener('seeked', onSeeked);
+                            resolve(dataURL);
+                        } catch (error) {
+                            video.removeEventListener('seeked', onSeeked);
+                            reject(error);
+                        }
+                    };
+                    
+                    video.addEventListener('seeked', onSeeked);
+                    video.currentTime = time;
+                });
+            }
+
+            addFrameToPreview(frameInfo, index) {
+                const preview = document.getElementById('framePreview');
+                const frameDiv = document.createElement('div');
+                frameDiv.className = 'frame-item';
+                frameDiv.dataset.index = index;
+                
+                frameDiv.innerHTML = `
+                    <img src="${frameInfo.data}" alt="Frame ${frameInfo.time}s">
+                    <div class="frame-time">${frameInfo.time.toFixed(1)}s</div>
+                `;
+                
+                frameDiv.addEventListener('click', () => {
+                    this.videoElement.currentTime = frameInfo.time;
+                });
+                
+                preview.appendChild(frameDiv);
+            }
+
+            async startOCR() {
+                if (this.extractedFrames.length === 0) {
+                    this.showNotification('Vui lòng trích xuất frames trước.', 'error');
+                    return;
+                }
+                
+                const apiKey = document.getElementById('apiKey').value.trim();
+                const useOpenAI = apiKey.length > 0;
+                
+                this.showProgress();
+                this.ocrResults = [];
+                document.getElementById('textOutput').value = '';
+                
+                const totalFrames = this.extractedFrames.length;
+                let processedFrames = 0;
+                
+                this.updateProgress(0, useOpenAI ? 'Đang OCR với OpenAI Vision...' : 'Đang OCR với Tesseract.js...');
+                
+                for (let i = 0; i < this.extractedFrames.length; i++) {
+                    const frame = this.extractedFrames[i];
+                    const frameElement = document.querySelector(`[data-index="${i}"]`);
+                    
+                    if (frameElement) {
+                        frameElement.classList.add('processing');
+                    }
+                    
+                    try {
+                        let text = '';
+                        
+                        if (useOpenAI) {
+                            text = await this.ocrWithOpenAI(frame.data, apiKey);
+                        } else {
+                            text = await this.ocrWithTesseract(frame.data);
+                        }
+                        
+                        if (text.trim()) {
+                            const result = {
+                                time: frame.time,
+                                text: text.trim()
+                            };
+                            this.ocrResults.push(result);
+                            
+                            // Update text output in real-time
+                            this.updateTextOutput();
+                        }
+                        
+                        if (frameElement) {
+                            frameElement.classList.remove('processing');
+                            frameElement.classList.add('completed');
+                        }
+                        
+                    } catch (error) {
+                        console.error('OCR error for frame', i, ':', error);
+                        
+                        if (frameElement) {
+                            frameElement.classList.remove('processing');
+                        }
+                    }
+                    
+                    processedFrames++;
+                    const progress = (processedFrames / totalFrames) * 100;
+                    this.updateProgress(progress, `Đã xử lý ${processedFrames}/${totalFrames} frames`);
+                }
+                
+                this.hideProgress();
+                this.updateDownloadButtons();
+                
+                if (this.ocrResults.length > 0) {
+                    this.showNotification(`✅ OCR hoàn thành! Tìm thấy text trong ${this.ocrResults.length} frames`, 'success');
+                } else {
+                    this.showNotification('⚠️ Không tìm thấy text nào trong các frames', 'info');
+                }
+            }
+
+            async ocrWithOpenAI(imageData, apiKey) {
+                try {
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o',
+                            messages: [
+                                {
+                                    role: 'user',
+                                    content: [
+                                        {
+                                            type: 'text',
+                                            text: 'Extract all text from this image. If there is subtitle text, return only the subtitle text. If no text is found, return empty string. Do not include any additional formatting or explanations.'
+                                        },
+                                        {
+                                            type: 'image_url',
+                                            image_url: {
+                                                url: imageData
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            max_tokens: 300
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`OpenAI API error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    return data.choices[0]?.message?.content || '';
+                    
+                } catch (error) {
+                    console.error('OpenAI OCR error:', error);
+                    throw error;
+                }
+            }
+
+            async ocrWithTesseract(imageData) {
+                try {
+                    if (!this.tesseractWorker) {
+                        this.tesseractWorker = await Tesseract.createWorker();
+                        const language = document.getElementById('ocrLanguage').value;
+                        await this.tesseractWorker.loadLanguage(language);
+                        await this.tesseractWorker.initialize(language);
+                    }
+
+                    const { data: { text } } = await this.tesseractWorker.recognize(imageData);
+                    return text;
+                    
+                } catch (error) {
+                    console.error('Tesseract OCR error:', error);
+                    throw error;
+                }
+            }
+
+            updateTextOutput() {
+                const textOutput = document.getElementById('textOutput');
+                let fullText = '';
+                
+                this.ocrResults
+                    .sort((a, b) => a.time - b.time)
+                    .forEach(result => {
+                        fullText += `[${this.formatTime(result.time)}] ${result.text}\n`;
+                    });
+                
+                textOutput.value = fullText;
+                textOutput.scrollTop = textOutput.scrollHeight;
+            }
+
+            clearText() {
+                document.getElementById('textOutput').value = '';
+                this.ocrResults = [];
+                this.updateDownloadButtons();
+                this.showNotification('Đã xóa nội dung.', 'info');
+            }
+
+            updateDownloadButtons() {
+                const hasText = document.getElementById('textOutput').value.trim().length > 0;
+                document.getElementById('downloadTxtBtn').disabled = !hasText;
+                document.getElementById('downloadSrtBtn').disabled = !hasText;
+            }
+
+            downloadFile(format) {
+                const text = document.getElementById('textOutput').value.trim();
+                if (!text) {
+                    this.showNotification('Không có nội dung để tải xuống.', 'error');
+                    return;
+                }
+
+                let content, filename, mimeType;
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g, '-');
+
+                if (format === 'srt') {
+                    content = this.generateSRT();
+                    filename = `subtitle_${timestamp}.srt`;
+                    mimeType = 'text/plain;charset=utf-8';
+                } else {
+                    content = text;
+                    filename = `subtitle_${timestamp}.txt`;
+                    mimeType = 'text/plain;charset=utf-8';
+                }
+
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                this.showNotification(`📥 Đã tải xuống ${filename}`, 'success');
+            }
+
+            generateSRT() {
+                let srt = '';
+                const duration = parseFloat(document.getElementById('frameInterval').value) || 1;
+                
+                this.ocrResults
+                    .sort((a, b) => a.time - b.time)
+                    .forEach((result, index) => {
+                        const startTime = result.time;
+                        const endTime = startTime + duration;
+                        
+                        srt += `${index + 1}\n`;
+                        srt += `${this.formatSRTTime(startTime)} --> ${this.formatSRTTime(endTime)}\n`;
+                        srt += `${result.text}\n\n`;
+                    });
+                
+                return srt;
+            }
+
+            formatSRTTime(seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+                const ms = Math.floor((seconds % 1) * 1000);
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+            }
+
+            formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            showProgress() {
+                document.getElementById('progressContainer').style.display = 'block';
+            }
+
+            hideProgress() {
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+
+            updateProgress(percent, text) {
+                document.getElementById('progressFill').style.width = `${percent}%`;
+                document.getElementById('progressPercent').textContent = `${Math.round(percent)}%`;
+                document.getElementById('progressText').textContent = text;
+            }
+
+            testFormats() {
+                console.log('=== VIDEO FORMAT SUPPORT TEST ===');
+                const video = document.createElement('video');
+                const formats = [
+                    'video/mp4; codecs="avc1.42E01E"',  // MP4 H.264
+                    'video/mp4; codecs="mp4v.20.8"',    // MP4 MPEG-4
+                    'video/webm; codecs="vp8"',         // WebM VP8
+                    'video/webm; codecs="vp9"',         // WebM VP9
+                    'video/ogg; codecs="theora"',       // Ogg Theora
+                    'video/avi',                        // AVI
+                    'video/mov',                        // MOV
+                    'video/x-msvideo'                   // AVI alternative
+                ];
+                
+                const results = {};
+                formats.forEach(format => {
+                    const support = video.canPlayType(format);
+                    results[format] = support;
+                    console.log(`${format}: ${support || 'not supported'}`);
+                });
+                
+                // Test current browser
+                console.log('Browser:', navigator.userAgent);
+                console.log('HTMLVideoElement supported:', 'HTMLVideoElement' in window);
+                console.log('Media Source Extensions:', 'MediaSource' in window);
+                
+                this.showNotification('Check Console (F12) để xem kết quả test video format', 'info');
+                return results;
+            }
+
+            showNotification(message, type = 'info') {
+                // Remove existing notifications
+                const existing = document.querySelector('.notification');
+                if (existing) existing.remove();
+
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                setTimeout(() => notification.classList.add('show'), 100);
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing Video OCR Extractor...');
+            const extractor = new VideoOCRExtractor();
+            console.log('Video OCR Extractor initialized');
+            
+            // Expose to global scope for debugging
+            window.videoExtractor = extractor;
+        });
+    </script>
+</body>
+</html>
